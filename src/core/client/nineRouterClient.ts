@@ -1,4 +1,8 @@
-import { RouterClientError } from "./errors";
+import {
+  RouterClientError,
+  type RouterClientErrorDetails,
+  type RouterRequestStage,
+} from "./errors";
 import type {
   ProviderConnection,
   ProviderConnectionsResponse,
@@ -20,6 +24,11 @@ interface NineRouterClientOptions {
   timeoutMs?: number;
 }
 
+interface RequestJsonOptions {
+  absolute?: boolean;
+  stage: RouterRequestStage;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -28,6 +37,17 @@ function parseSemver(version: string): [number, number, number] | null {
   const match = version.trim().match(/^(\d+)\.(\d+)\.(\d+)/);
   if (!match) return null;
   return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function browserDetails(): Pick<
+  RouterClientErrorDetails,
+  "browserUserAgent" | "navigatorOnline"
+> {
+  if (typeof navigator === "undefined") return {};
+  return {
+    browserUserAgent: navigator.userAgent,
+    navigatorOnline: navigator.onLine,
+  };
 }
 
 export function compareSemver(a: string, b: string): number {
@@ -57,22 +77,28 @@ export class NineRouterClient {
   }
 
   async getHealth(): Promise<RouterHealthResponse> {
-    const data = await this.requestJson<unknown>("api/health");
+    const path = "api/health";
+    const data = await this.requestJson<unknown>(path, {}, { stage: "health" });
     if (!isRecord(data) || data.ok !== true) {
       throw new RouterClientError(
         "INVALID_RESPONSE",
         "9Router health endpoint returned an unexpected response.",
+        200,
+        { details: this.endpointDetails("health", path) },
       );
     }
     return { ok: true };
   }
 
   async getVersion(): Promise<RouterVersionResponse> {
-    const data = await this.requestJson<unknown>("api/version");
+    const path = "api/version";
+    const data = await this.requestJson<unknown>(path, {}, { stage: "version" });
     if (!isRecord(data) || typeof data.currentVersion !== "string") {
       throw new RouterClientError(
         "INVALID_RESPONSE",
         "9Router version endpoint returned an unexpected response.",
+        200,
+        { details: this.endpointDetails("version", path) },
       );
     }
     return {
@@ -91,17 +117,22 @@ export class NineRouterClient {
       throw new RouterClientError(
         "INCOMPATIBLE_VERSION",
         `9Router ${version.currentVersion} is not supported. Upgrade to ${MIN_SUPPORTED_9ROUTER_VERSION} or newer.`,
+        null,
+        { details: this.endpointDetails("version", "api/version") },
       );
     }
     return version;
   }
 
   async getAuthStatus(): Promise<RouterAuthStatusResponse> {
-    const data = await this.requestJson<unknown>("api/auth/status");
+    const path = "api/auth/status";
+    const data = await this.requestJson<unknown>(path, {}, { stage: "auth-status" });
     if (!isRecord(data) || typeof data.requireLogin !== "boolean") {
       throw new RouterClientError(
         "INVALID_RESPONSE",
         "9Router auth status endpoint returned an unexpected response.",
+        200,
+        { details: this.endpointDetails("auth-status", path) },
       );
     }
     return {
@@ -125,8 +156,11 @@ export class NineRouterClient {
       url.searchParams.set("sort", "priority");
       url.searchParams.set("page", String(page));
       url.searchParams.set("pageSize", String(CONNECTION_PAGE_SIZE));
-      const data = await this.requestJson<unknown>(url.toString(), {}, true);
-      const parsed = this.parseConnectionsResponse(data);
+      const data = await this.requestJson<unknown>(url.toString(), {}, {
+        absolute: true,
+        stage: "provider-connections",
+      });
+      const parsed = this.parseConnectionsResponse(data, url.toString());
       allConnections.push(...parsed.connections);
       totalPages = Math.max(1, parsed.pagination?.totalPages ?? 1);
       page += 1;
@@ -137,25 +171,40 @@ export class NineRouterClient {
 
   async getUsage(connectionId: string): Promise<RawUsageResponse> {
     if (!connectionId.trim()) {
-      throw new RouterClientError("INVALID_RESPONSE", "Connection ID is required.");
+      throw new RouterClientError("INVALID_RESPONSE", "Connection ID is required.", null, {
+        details: { stage: "usage" },
+      });
     }
-    const data = await this.requestJson<unknown>(
-      `api/usage/${encodeURIComponent(connectionId)}`,
-    );
+    const path = `api/usage/${encodeURIComponent(connectionId)}`;
+    const data = await this.requestJson<unknown>(path, {}, { stage: "usage" });
     if (!isRecord(data)) {
       throw new RouterClientError(
         "INVALID_RESPONSE",
         "9Router usage endpoint returned an unexpected response.",
+        200,
+        { details: this.endpointDetails("usage", path) },
       );
     }
     return data;
   }
 
-  private parseConnectionsResponse(data: unknown): ProviderConnectionsResponse {
+  private parseConnectionsResponse(
+    data: unknown,
+    requestUrl: string,
+  ): ProviderConnectionsResponse {
     if (!isRecord(data) || !Array.isArray(data.connections)) {
       throw new RouterClientError(
         "INVALID_RESPONSE",
         "9Router provider endpoint returned an unexpected response.",
+        200,
+        {
+          details: {
+            stage: "provider-connections",
+            method: "GET",
+            url: requestUrl,
+            ...browserDetails(),
+          },
+        },
       );
     }
     const connections = data.connections.filter((entry): entry is ProviderConnection =>
@@ -178,14 +227,46 @@ export class NineRouterClient {
     };
   }
 
+  private endpointDetails(
+    stage: RouterRequestStage,
+    path: string,
+  ): RouterClientErrorDetails {
+    return {
+      stage,
+      method: "GET",
+      url: routerUrl(this.baseUrl, path),
+      ...browserDetails(),
+    };
+  }
+
+  private requestDetails(
+    stage: RouterRequestStage,
+    method: string,
+    url: string,
+    startedAt: number,
+    extra: Partial<RouterClientErrorDetails> = {},
+  ): RouterClientErrorDetails {
+    return {
+      stage,
+      method,
+      url,
+      elapsedMs: Math.max(0, Date.now() - startedAt),
+      timedOut: false,
+      ...browserDetails(),
+      ...extra,
+    };
+  }
+
   private async requestJson<T>(
     pathOrUrl: string,
     init: RequestInit = {},
-    absolute = false,
+    options: RequestJsonOptions,
   ): Promise<T> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-    const url = absolute ? pathOrUrl : routerUrl(this.baseUrl, pathOrUrl);
+    const url = options.absolute ? pathOrUrl : routerUrl(this.baseUrl, pathOrUrl);
+    const method = String(init.method || "GET").toUpperCase();
+    const startedAt = Date.now();
 
     try {
       let response: Response;
@@ -198,48 +279,70 @@ export class NineRouterClient {
           signal: controller.signal,
         });
       } catch (error) {
-        const timedOut = error instanceof DOMException && error.name === "AbortError";
+        const cause = error instanceof Error ? error : new Error(String(error));
+        const timedOut = cause.name === "AbortError";
+        const details = this.requestDetails(options.stage, method, url, startedAt, {
+          timedOut,
+          causeName: cause.name,
+          causeMessage: cause.message,
+        });
+        console.error("[NineRouterClient] Fetch failed", details, cause);
         throw new RouterClientError(
           "OFFLINE",
           timedOut
-            ? "The request to 9Router timed out."
-            : "Unable to reach the local 9Router instance.",
+            ? `Request to 9Router timed out during ${options.stage}.`
+            : `Browser fetch failed during ${options.stage}. Open Technical details for the exact URL and cause.`,
           null,
-          { cause: error instanceof Error ? error : undefined },
+          { cause, details },
         );
       }
 
-      if (response.status === 401) {
-        throw new RouterClientError(
-          "AUTH_REQUIRED",
-          "Sign in to the 9Router dashboard, then refresh the extension.",
-          401,
-        );
-      }
-      if (response.status === 403) {
-        throw new RouterClientError(
-          "FORBIDDEN",
-          "9Router denied access to this endpoint.",
-          403,
-        );
-      }
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
+        const details = this.requestDetails(options.stage, method, url, startedAt);
+        console.warn(
+          `[NineRouterClient] ${options.stage} returned HTTP ${response.status}`,
+          details,
+        );
+
+        if (response.status === 401) {
+          throw new RouterClientError(
+            "AUTH_REQUIRED",
+            `Sign in to the 9Router dashboard at ${new URL(url).origin}, then refresh the extension.`,
+            401,
+            { details },
+          );
+        }
+        if (response.status === 403) {
+          throw new RouterClientError(
+            "FORBIDDEN",
+            `9Router denied the ${options.stage} request with HTTP 403.`,
+            403,
+            { details },
+          );
+        }
         throw new RouterClientError(
           "HTTP_ERROR",
-          `9Router returned HTTP ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`,
+          `9Router returned HTTP ${response.status} during ${options.stage}${detail ? `: ${detail.slice(0, 200)}` : ""}`,
           response.status,
+          { details },
         );
       }
 
       try {
         return (await response.json()) as T;
       } catch (error) {
+        const cause = error instanceof Error ? error : new Error(String(error));
+        const details = this.requestDetails(options.stage, method, url, startedAt, {
+          causeName: cause.name,
+          causeMessage: cause.message,
+        });
+        console.error("[NineRouterClient] JSON parsing failed", details, cause);
         throw new RouterClientError(
           "INVALID_RESPONSE",
-          "9Router returned a non-JSON response.",
+          `9Router returned a non-JSON response during ${options.stage}.`,
           response.status,
-          { cause: error instanceof Error ? error : undefined },
+          { cause, details },
         );
       }
     } finally {

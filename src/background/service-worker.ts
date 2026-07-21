@@ -1,4 +1,7 @@
-import { asRouterClientError } from "../core/client/errors";
+import {
+  asRouterClientError,
+  type RouterClientErrorDetails,
+} from "../core/client/errors";
 import { NineRouterClient } from "../core/client/nineRouterClient";
 import type { RouterProbeResult } from "../core/quota/types";
 import { refreshAllQuotas } from "../core/refresh/refreshAll";
@@ -14,22 +17,64 @@ import type {
   BackgroundRequest,
   BackgroundResponse,
   ExtensionState,
+  SerializedError,
 } from "../shared/messages";
 
 function success<T>(data: T): BackgroundResponse<T> {
   return { ok: true, data };
 }
 
-function failure(error: unknown): BackgroundResponse<never> {
+function permissionPatternForUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    return `${url.protocol}//${url.hostname}/*`;
+  } catch {
+    return null;
+  }
+}
+
+async function failure(error: unknown): Promise<BackgroundResponse<never>> {
   const normalized = asRouterClientError(error);
-  return {
-    ok: false,
-    error: {
-      code: normalized.code,
-      message: normalized.message,
-      status: normalized.status,
-    },
+  const manifest = chrome.runtime.getManifest();
+  const declaredHostPermissions = manifest.host_permissions ?? [];
+  const details: RouterClientErrorDetails = normalized.details
+    ? {
+        ...normalized.details,
+        declaredHostPermissions,
+        extensionVersion: manifest.version,
+      }
+    : {
+        declaredHostPermissions,
+        extensionVersion: manifest.version,
+      };
+
+  const permissionPattern = normalized.details?.url
+    ? permissionPatternForUrl(normalized.details.url)
+    : null;
+
+  if (permissionPattern) {
+    try {
+      details.hostPermissionGranted = await chrome.permissions.contains({
+        origins: [permissionPattern],
+      });
+    } catch (permissionError) {
+      console.warn(
+        "[9Router Quota Checker] Unable to inspect host permission",
+        permissionPattern,
+        permissionError,
+      );
+    }
+  }
+
+  const serialized: SerializedError = {
+    code: normalized.code,
+    message: normalized.message,
+    status: normalized.status,
+    details,
   };
+
+  console.error("[9Router Quota Checker] Request failed", serialized, normalized);
+  return { ok: false, error: serialized };
 }
 
 async function refresh(): Promise<BackgroundResponse> {
@@ -103,8 +148,12 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener((message: BackgroundRequest, _sender, sendResponse) => {
-  void handleMessage(message)
-    .then(sendResponse)
-    .catch((error) => sendResponse(failure(error)));
+  void (async () => {
+    try {
+      sendResponse(await handleMessage(message));
+    } catch (error) {
+      sendResponse(await failure(error));
+    }
+  })();
   return true;
 });

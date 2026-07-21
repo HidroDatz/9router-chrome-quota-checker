@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "9Router Quota Checker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Monitor quota for provider accounts connected to your local 9Router instance.",
   "action": {
     "default_title": "9Router Quota Checker",
