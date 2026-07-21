@@ -1,6 +1,6 @@
 {
   "name": "9router-chrome-quota-checker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Read-only Chrome extension for monitoring provider quota through a local 9Router instance.",
