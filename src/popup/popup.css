@@ -19,6 +19,9 @@ button { font: inherit; }
 .banner { margin: 10px 0; padding: 10px; border: 1px solid #7f3e4b; border-radius: 10px; background: #341a24; color: #ffc8cf; font-size: 12px; line-height: 1.45; }
 .banner.warning { border-color: #77652d; background: #302918; color: #f7e3a6; }
 .banner-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.technical-details { margin-top: 9px; border-top: 1px solid rgba(255,255,255,.14); padding-top: 8px; }
+.technical-details summary { cursor: pointer; color: inherit; font-size: 11px; font-weight: 700; user-select: none; }
+.technical-details pre { max-height: 190px; margin: 8px 0 0; overflow: auto; padding: 9px; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: rgba(4,8,18,.52); color: #dbe5ff; font: 10px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .summary { display: flex; gap: 8px; margin: 10px 0 12px; }
 .summary-item { flex: 1; padding: 9px; border: 1px solid #283657; border-radius: 10px; background: rgba(20,30,55,.8); }
 .summary-value { display: block; font-size: 16px; font-weight: 700; }
