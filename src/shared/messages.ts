@@ -3,7 +3,10 @@ import type {
   QuotaCache,
   RouterProbeResult,
 } from "../core/quota/types";
-import type { RouterClientErrorCode } from "../core/client/errors";
+import type {
+  RouterClientErrorCode,
+  RouterClientErrorDetails,
+} from "../core/client/errors";
 
 export type BackgroundRequest =
   | { type: "GET_STATE" }
@@ -21,6 +24,7 @@ export interface SerializedError {
   code: RouterClientErrorCode | "UNKNOWN";
   message: string;
   status: number | null;
+  details: RouterClientErrorDetails | null;
 }
 
 export type BackgroundResponse<T = unknown> =
