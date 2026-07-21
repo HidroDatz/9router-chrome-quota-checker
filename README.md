@@ -67,6 +67,12 @@ The unpacked extension is generated in `dist/`.
 6. Open the extension settings and test the local 9Router connection.
 7. If the popup reports `AUTH_REQUIRED`, open the 9Router login page, sign in, and refresh the popup.
 
+## Detailed connectivity diagnostics
+
+Version `0.1.1` exposes a **Technical details** panel whenever a browser request fails. It identifies the exact failing stage and URL, root `fetch()` cause, elapsed time, Chrome host-permission state, browser version, online state, and the host patterns in the loaded manifest.
+
+This is especially useful when `curl` succeeds but the request from the extension service worker fails. See [docs/troubleshooting.md](docs/troubleshooting.md) for the diagnostic workflow and interpretation guide.
+
 ## 9Router endpoints used
 
 ```text
@@ -109,9 +115,9 @@ src/core/refresh/     Concurrency-limited refresh pipeline
 src/core/storage/     chrome.storage.local repository
 src/options/          Settings and connection probe UI
 src/popup/            Quota popup UI
-src/shared/           URL and message contracts
+src/shared/           URL, message, and diagnostics helpers
 tests/                Fixtures and unit tests
-docs/                 Contract, compatibility, provider, and security notes
+docs/                 Contract, compatibility, provider, security, and troubleshooting notes
 ```
 
 ## License
