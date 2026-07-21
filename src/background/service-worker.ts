@@ -35,10 +35,18 @@ function permissionPatternForUrl(value: string): string | null {
 
 async function failure(error: unknown): Promise<BackgroundResponse<never>> {
   const normalized = asRouterClientError(error);
-  const declaredHostPermissions = chrome.runtime.getManifest().host_permissions ?? [];
+  const manifest = chrome.runtime.getManifest();
+  const declaredHostPermissions = manifest.host_permissions ?? [];
   const details: RouterClientErrorDetails = normalized.details
-    ? { ...normalized.details, declaredHostPermissions }
-    : { declaredHostPermissions };
+    ? {
+        ...normalized.details,
+        declaredHostPermissions,
+        extensionVersion: manifest.version,
+      }
+    : {
+        declaredHostPermissions,
+        extensionVersion: manifest.version,
+      };
 
   const permissionPattern = normalized.details?.url
     ? permissionPatternForUrl(normalized.details.url)
