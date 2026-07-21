@@ -48,7 +48,7 @@ export class NineRouterClient {
 
   constructor(baseUrl: string, options: NineRouterClientOptions = {}) {
     this.baseUrl = normalizeBaseUrl(baseUrl);
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
@@ -199,6 +199,11 @@ export class NineRouterClient {
         });
       } catch (error) {
         const timedOut = error instanceof DOMException && error.name === "AbortError";
+        console.error("9Router fetch failed", {
+          url,
+          name: error instanceof Error ? error.name : typeof error,
+          message: error instanceof Error ? error.message : String(error),
+        });
         throw new RouterClientError(
           "OFFLINE",
           timedOut

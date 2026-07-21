@@ -31,6 +31,39 @@ describe("NineRouterClient", () => {
     await expect(client.getProviderConnections()).rejects.toMatchObject({ code: "AUTH_REQUIRED", status: 401 });
   });
 
+  it("logs the underlying fetch failure before mapping it to OFFLINE", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const cause = new TypeError("Failed to fetch");
+    const client = new NineRouterClient("http://localhost:20128", { fetchImpl: vi.fn(async () => { throw cause; }) as typeof fetch });
+
+    await expect(client.getHealth()).rejects.toMatchObject({ code: "OFFLINE", status: null });
+    expect(errorSpy).toHaveBeenCalledWith("9Router fetch failed", {
+      url: "http://localhost:20128/api/health",
+      name: "TypeError",
+      message: "Failed to fetch",
+    });
+
+    errorSpy.mockRestore();
+  });
+
+  it("binds the default fetch to the global object", async () => {
+    const originalFetch = globalThis.fetch;
+    const boundFetch = vi.fn(function (this: typeof globalThis, input: RequestInfo | URL) {
+      expect(this).toBe(globalThis);
+      expect(new URL(String(input)).pathname).toBe("/api/health");
+      return Promise.resolve(json({ ok: true }));
+    }) as typeof fetch;
+    globalThis.fetch = boundFetch;
+
+    try {
+      const client = new NineRouterClient("http://localhost:20128");
+      await expect(client.getHealth()).resolves.toEqual({ ok: true });
+      expect(boundFetch).toHaveBeenCalledOnce();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("rejects unsupported 9Router versions", async () => {
     const client = new NineRouterClient("http://localhost:20128", { fetchImpl: vi.fn(async () => json({ currentVersion: "0.5.39" })) as typeof fetch });
     await expect(client.assertCompatibleVersion()).rejects.toBeInstanceOf(RouterClientError);

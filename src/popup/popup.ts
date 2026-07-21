@@ -1,6 +1,7 @@
 import "./popup.css";
 import type { ConnectionQuotaSnapshot, QuotaBucket, QuotaCache } from "../core/quota/types";
 import type { BackgroundRequest, BackgroundResponse, ExtensionState } from "../shared/messages";
+import { visibleBuckets } from "./bucketDisclosure";
 
 const appNode = document.querySelector<HTMLElement>("#app");
 if (!appNode) throw new Error("Popup root element not found");
@@ -90,9 +91,23 @@ function card(snapshot: ConnectionQuotaSnapshot): HTMLElement {
   const head = el("div", "card-head");
   const labels = el("div");
   labels.append(el("h2", "provider", providerName(snapshot.provider)), el("div", "account", [snapshot.accountLabel, snapshot.plan].filter(Boolean).join(" · ") || snapshot.connectionId));
-  head.append(labels, el("span", `dot ${tone(minimum(snapshot))}`));
+  const indicators = el("div", "card-indicators");
+  if (snapshot.buckets.length > 1) {
+    const expanded = expandedCards.has(snapshot.connectionId);
+    const toggle = el("button", "bucket-toggle", expanded ? "Hide usages" : `Show ${snapshot.buckets.length} usages`);
+    toggle.type = "button";
+    toggle.setAttribute("aria-expanded", String(expanded));
+    toggle.addEventListener("click", () => {
+      if (expanded) expandedCards.delete(snapshot.connectionId);
+      else expandedCards.add(snapshot.connectionId);
+      render();
+    });
+    indicators.append(toggle);
+  }
+  indicators.append(el("span", `dot ${tone(minimum(snapshot))}`));
+  head.append(labels, indicators);
   root.append(head);
-  for (const bucket of snapshot.buckets) root.append(bucketNode(bucket));
+  for (const bucket of visibleBuckets(snapshot.buckets, expandedCards.has(snapshot.connectionId))) root.append(bucketNode(bucket));
   if (snapshot.message) root.append(el("p", "message", snapshot.message));
   return root;
 }
@@ -119,6 +134,7 @@ function cacheNode(cache: QuotaCache): HTMLElement {
 let state: ExtensionState | null = null;
 let busy = false;
 let currentError: { code: string; message: string } | null = null;
+const expandedCards = new Set<string>();
 
 async function openLogin(): Promise<void> {
   const response = await send<string>({ type: "GET_LOGIN_URL" });

@@ -2,6 +2,7 @@ import "./options.css";
 import type { ExtensionSettings, RouterProbeResult } from "../core/quota/types";
 import { assertSupportedBaseUrl } from "../shared/url";
 import type { BackgroundRequest, BackgroundResponse, ExtensionState } from "../shared/messages";
+import { logConnectionError } from "./connectionLogger";
 
 const appNode = document.querySelector<HTMLElement>("#app");
 if (!appNode) throw new Error("Options root element not found");
@@ -87,7 +88,10 @@ async function initialize(): Promise<void> {
       try {
         const baseUrl = assertSupportedBaseUrl(urlInput.value);
         const response = await send<ExtensionSettings>({ type: "SAVE_SETTINGS", settings: { baseUrl, activeOnly: activeInput.checked } });
-        if (!response.ok) throw new Error(response.error.message);
+        if (!response.ok) {
+          logConnectionError({ action: "save-settings", baseUrl, error: response.error });
+          throw new Error(response.error.message);
+        }
         urlInput.value = response.data.baseUrl;
         setStatus(status, "Settings saved. The quota cache was cleared if the URL changed.", "success");
       } catch (error) {
@@ -105,9 +109,15 @@ async function initialize(): Promise<void> {
       try {
         const baseUrl = assertSupportedBaseUrl(urlInput.value);
         const saved = await send<ExtensionSettings>({ type: "SAVE_SETTINGS", settings: { baseUrl, activeOnly: activeInput.checked } });
-        if (!saved.ok) throw new Error(saved.error.message);
+        if (!saved.ok) {
+          logConnectionError({ action: "save-settings", baseUrl, error: saved.error });
+          throw new Error(saved.error.message);
+        }
         const response = await send<RouterProbeResult>({ type: "PROBE_ROUTER" });
-        if (!response.ok) throw new Error(response.error.message);
+        if (!response.ok) {
+          logConnectionError({ action: "test-connection", baseUrl, error: response.error });
+          throw new Error(response.error.message);
+        }
         setStatus(status, `Connected to 9Router ${response.data.version.currentVersion}. Found ${response.data.connectionCount} eligible connection(s).`, "success");
       } catch (error) {
         setStatus(status, error instanceof Error ? error.message : "Connection test failed.", "error");
