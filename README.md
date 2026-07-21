@@ -4,6 +4,12 @@ A read-only Manifest V3 Chrome extension that displays quota for provider connec
 
 The extension deliberately delegates credentials, OAuth refresh, connection proxies, and provider-specific quota calls to 9Router. It consumes only the sanitized connection endpoint and the normalized usage endpoint exposed by the local dashboard.
 
+## OpenCode integration
+
+The repository also contains a read-only [OpenCode TUI plugin](opencode-plugin/README.md). It renders provider quota in `sidebar_content`, registers a `/quota` command, and opens a detailed quota dialog without reading OpenCode's provider credentials.
+
+The plugin treats 9Router as the quota aggregation boundary. Authentication is supplied through environment variables, and the resulting dashboard cookie remains in process memory rather than being written to disk. See [the OpenCode integration research](opencode-plugin/RESEARCH.md) for the upstream design analysis and overlap with native OpenCode usage tracking.
+
 ## Implemented scope
 
 This initial release implements milestones 0–3:
@@ -112,6 +118,7 @@ src/popup/            Quota popup UI
 src/shared/           URL and message contracts
 tests/                Fixtures and unit tests
 docs/                 Contract, compatibility, provider, and security notes
+opencode-plugin/      OpenCode TUI sidebar, command, dialog, client, and tests
 ```
 
 ## License
