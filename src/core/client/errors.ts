@@ -26,6 +26,7 @@ export interface RouterClientErrorDetails {
   navigatorOnline?: boolean;
   hostPermissionGranted?: boolean;
   declaredHostPermissions?: string[];
+  extensionVersion?: string;
 }
 
 export interface RouterClientErrorOptions extends ErrorOptions {
