@@ -1,6 +1,12 @@
 import "./popup.css";
 import type { ConnectionQuotaSnapshot, QuotaBucket, QuotaCache } from "../core/quota/types";
-import type { BackgroundRequest, BackgroundResponse, ExtensionState } from "../shared/messages";
+import { createTechnicalDetails } from "../shared/diagnostics";
+import type {
+  BackgroundRequest,
+  BackgroundResponse,
+  ExtensionState,
+  SerializedError,
+} from "../shared/messages";
 
 const appNode = document.querySelector<HTMLElement>("#app");
 if (!appNode) throw new Error("Popup root element not found");
@@ -118,7 +124,7 @@ function cacheNode(cache: QuotaCache): HTMLElement {
 
 let state: ExtensionState | null = null;
 let busy = false;
-let currentError: { code: string; message: string } | null = null;
+let currentError: SerializedError | null = null;
 
 async function openLogin(): Promise<void> {
   const response = await send<string>({ type: "GET_LOGIN_URL" });
@@ -150,7 +156,7 @@ function render(): void {
       login.addEventListener("click", () => void openLogin());
       row.append(login);
     }
-    banner.append(row);
+    banner.append(row, createTechnicalDetails(currentError));
     shell.append(banner);
   }
 
