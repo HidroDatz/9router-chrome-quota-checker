@@ -1,0 +1,24 @@
+{
+  "name": "9router-chrome-quota-checker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only Chrome extension for monitoring provider quota through a local 9Router instance.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run test && vite build"
+  },
+  "engines": { "node": ">=22" },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.2.2",
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
+  }
+}
