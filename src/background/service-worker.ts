@@ -1,4 +1,7 @@
-import { asRouterClientError } from "../core/client/errors";
+import {
+  asRouterClientError,
+  type RouterClientErrorDetails,
+} from "../core/client/errors";
 import { NineRouterClient } from "../core/client/nineRouterClient";
 import type { RouterProbeResult } from "../core/quota/types";
 import { refreshAllQuotas } from "../core/refresh/refreshAll";
@@ -33,7 +36,7 @@ function permissionPatternForUrl(value: string): string | null {
 async function failure(error: unknown): Promise<BackgroundResponse<never>> {
   const normalized = asRouterClientError(error);
   const declaredHostPermissions = chrome.runtime.getManifest().host_permissions ?? [];
-  const details = normalized.details
+  const details: RouterClientErrorDetails = normalized.details
     ? { ...normalized.details, declaredHostPermissions }
     : { declaredHostPermissions };
 
