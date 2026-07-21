@@ -30,6 +30,7 @@ export function diagnosticLines(error: SerializedError): string[] {
     `Message: ${error.message}`,
   ];
 
+  if (details?.extensionVersion) lines.push(`Extension version: ${details.extensionVersion}`);
   if (error.status !== null) lines.push(`HTTP status: ${error.status}`);
   if (details?.stage) lines.push(`Stage: ${details.stage}`);
   if (details?.method || details?.url) {
