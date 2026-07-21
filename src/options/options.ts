@@ -1,7 +1,13 @@
 import "./options.css";
 import type { ExtensionSettings, RouterProbeResult } from "../core/quota/types";
+import { createTechnicalDetails } from "../shared/diagnostics";
 import { assertSupportedBaseUrl } from "../shared/url";
-import type { BackgroundRequest, BackgroundResponse, ExtensionState } from "../shared/messages";
+import type {
+  BackgroundRequest,
+  BackgroundResponse,
+  ExtensionState,
+  SerializedError,
+} from "../shared/messages";
 
 const appNode = document.querySelector<HTMLElement>("#app");
 if (!appNode) throw new Error("Options root element not found");
@@ -20,8 +26,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text?
 
 function setStatus(node: HTMLElement, message: string, kind: "normal" | "success" | "error"): void {
   node.className = `status${kind === "normal" ? "" : ` ${kind}`}`;
-  node.textContent = message;
+  node.replaceChildren(document.createTextNode(message));
   node.hidden = false;
+}
+
+function setErrorStatus(node: HTMLElement, error: SerializedError): void {
+  setStatus(node, error.message, "error");
+  node.append(createTechnicalDetails(error));
 }
 
 async function openLogin(): Promise<void> {
@@ -87,7 +98,10 @@ async function initialize(): Promise<void> {
       try {
         const baseUrl = assertSupportedBaseUrl(urlInput.value);
         const response = await send<ExtensionSettings>({ type: "SAVE_SETTINGS", settings: { baseUrl, activeOnly: activeInput.checked } });
-        if (!response.ok) throw new Error(response.error.message);
+        if (!response.ok) {
+          setErrorStatus(status, response.error);
+          return;
+        }
         urlInput.value = response.data.baseUrl;
         setStatus(status, "Settings saved. The quota cache was cleared if the URL changed.", "success");
       } catch (error) {
@@ -105,9 +119,15 @@ async function initialize(): Promise<void> {
       try {
         const baseUrl = assertSupportedBaseUrl(urlInput.value);
         const saved = await send<ExtensionSettings>({ type: "SAVE_SETTINGS", settings: { baseUrl, activeOnly: activeInput.checked } });
-        if (!saved.ok) throw new Error(saved.error.message);
+        if (!saved.ok) {
+          setErrorStatus(status, saved.error);
+          return;
+        }
         const response = await send<RouterProbeResult>({ type: "PROBE_ROUTER" });
-        if (!response.ok) throw new Error(response.error.message);
+        if (!response.ok) {
+          setErrorStatus(status, response.error);
+          return;
+        }
         setStatus(status, `Connected to 9Router ${response.data.version.currentVersion}. Found ${response.data.connectionCount} eligible connection(s).`, "success");
       } catch (error) {
         setStatus(status, error instanceof Error ? error.message : "Connection test failed.", "error");
