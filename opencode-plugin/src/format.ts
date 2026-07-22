@@ -12,6 +12,16 @@ export function connectionName(connection: ConnectionQuotaSnapshot) {
   return connection.accountLabel ? `${providerName(connection.provider)} · ${connection.accountLabel}` : providerName(connection.provider)
 }
 
+export function connectionSummary(connection: ConnectionQuotaSnapshot) {
+  const count = connection.buckets.length
+  const label = `${count} quota row${count === 1 ? "" : "s"}`
+  const percentages = connection.buckets
+    .map((bucket) => bucket.remainingPercent)
+    .filter((value): value is number => value !== null)
+  if (percentages.length === 0) return label
+  return `${label} · lowest ${Math.round(Math.min(...percentages))}% left`
+}
+
 export function remainingText(bucket: QuotaBucket) {
   if (bucket.unlimited) return "unlimited"
   if (bucket.remainingPercent === null) return "unknown"

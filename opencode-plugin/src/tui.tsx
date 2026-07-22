@@ -30,7 +30,8 @@ const tui: TuiPlugin = async (api, options) => {
         title: "9Router quota",
         category: "Provider",
         namespace: "palette",
-        slashName: "quota",
+        slashName: "9router-quota",
+        slashAliases: ["9r-quota"],
         run() {
           openQuotaDialog(api, client, config)
         },
@@ -43,7 +44,19 @@ const tui: TuiPlugin = async (api, options) => {
     order: 150,
     slots: {
       sidebar_content() {
-        return <QuotaView api={api} client={client} config={config} compact />
+        return (
+          <QuotaView
+            api={api}
+            client={client}
+            config={config}
+            compact
+            collapsible
+            showCollapseActions={false}
+            sectionCollapsible
+            sectionStateKey="sidebar.section.collapsed"
+            connectionStateKey="sidebar.connections.collapsed"
+          />
+        )
       },
     },
   })

@@ -5,8 +5,12 @@ A read-only OpenCode TUI plugin that displays quota for provider accounts alread
 The plugin uses OpenCode's supported TUI extension points:
 
 - A persistent `sidebar_content` panel.
-- A `/quota` command and command-palette entry.
+- A `/9router-quota` command and command-palette entry without replacing OpenCode's native `/quota` command.
 - A larger quota dialog for all visible accounts.
+- A collapsible sidebar section with persisted open/closed state.
+- Per-account collapse/expand in both the sidebar and dialog.
+- Global expand-all and collapse-all controls in the dialog.
+- A scrollable dialog with mouse-wheel, scrollbar, arrow-key, `j`/`k`, and Page Up/Page Down navigation.
 
 It does not read OpenCode provider credentials and does not call Claude, Codex, Gemini, Copilot, Kiro, GLM, MiniMax, or another upstream provider directly. Credential refresh and provider-specific quota requests remain inside 9Router.
 
@@ -53,7 +57,7 @@ When 9Router has `requireLogin=false`, neither variable is needed. Keep that mod
 
 ## Configuration
 
-The package writes these defaults on first install:
+The plugin uses these defaults:
 
 ```json
 {
@@ -77,6 +81,8 @@ Additional supported options:
 }
 ```
 
+`maxConnections` and `maxRowsPerConnection` keep the persistent sidebar compact. The `/9router-quota` dialog ignores those display caps, loads all quota-enabled accounts returned by 9Router, and shows every quota row when an account is expanded.
+
 Remote origins are rejected by default. Enabling `allowRemote` also requires an HTTPS URL.
 
 ## 9Router API contract
@@ -97,13 +103,30 @@ The display keeps absolute balances separate from percentages. This prevents val
 
 One-shot CodeBuddy bonus packs are shown as expiring; recurring packages are shown as resetting.
 
-## Commands
+## Sidebar controls
+
+- Click `[-] 9ROUTER QUOTA` to collapse the whole 9Router sidebar section.
+- Click `[+] 9ROUTER QUOTA` to restore it.
+- The section state is stored in OpenCode's plugin KV and is restored after restarting OpenCode.
+- While the section is open, click `[+]` or `[-]` beside an account to expand or collapse only that account.
+- Per-account sidebar collapse state is also restored across restarts.
+- The collapsed section still refreshes quota in the background and shows a compact account/low-quota summary.
+
+## Commands and dialog navigation
 
 ```text
-/quota
+/9router-quota
+/9r-quota
 ```
 
-The same action is available as **9Router quota** in the command palette.
+OpenCode's native `/quota` command remains available. The plugin action is also available as **9Router quota** in the command palette.
+
+Inside the plugin dialog:
+
+- Click `[+]` or `[-]` on an account header to expand or collapse that account.
+- Use `[expand all]` and `[collapse all]` for all logged-in provider accounts.
+- Scroll with the mouse wheel, drag the visible scrollbar, or use `↑`, `↓`, `j`, `k`, Page Up, and Page Down.
+- Press `Esc` to close the dialog.
 
 ## Development
 
