@@ -7,14 +7,7 @@
   "exports": {
     "./tui": {
       "types": "./dist/tui.d.ts",
-      "import": "./dist/tui.jsx",
-      "config": {
-        "baseUrl": "http://127.0.0.1:20128",
-        "activeOnly": true,
-        "refreshIntervalMs": 60000,
-        "passwordEnv": "NINE_ROUTER_PASSWORD",
-        "cookieEnv": "NINE_ROUTER_AUTH_COOKIE"
-      }
+      "import": "./dist/tui.jsx"
     }
   },
   "files": [
