@@ -7,6 +7,8 @@ The plugin uses OpenCode's supported TUI extension points:
 - A persistent `sidebar_content` panel.
 - A `/quota` command and command-palette entry.
 - A larger quota dialog for all visible accounts.
+- Per-account collapse/expand plus global expand-all and collapse-all controls.
+- A scrollable dialog with mouse-wheel, scrollbar, arrow-key, `j`/`k`, and Page Up/Page Down navigation.
 
 It does not read OpenCode provider credentials and does not call Claude, Codex, Gemini, Copilot, Kiro, GLM, MiniMax, or another upstream provider directly. Credential refresh and provider-specific quota requests remain inside 9Router.
 
@@ -53,7 +55,7 @@ When 9Router has `requireLogin=false`, neither variable is needed. Keep that mod
 
 ## Configuration
 
-The package writes these defaults on first install:
+The plugin uses these defaults:
 
 ```json
 {
@@ -77,6 +79,8 @@ Additional supported options:
 }
 ```
 
+`maxConnections` and `maxRowsPerConnection` keep the persistent sidebar compact. The `/quota` dialog ignores those display caps, loads all quota-enabled accounts returned by 9Router, and shows every quota row when an account is expanded.
+
 Remote origins are rejected by default. Enabling `allowRemote` also requires an HTTPS URL.
 
 ## 9Router API contract
@@ -97,13 +101,20 @@ The display keeps absolute balances separate from percentages. This prevents val
 
 One-shot CodeBuddy bonus packs are shown as expiring; recurring packages are shown as resetting.
 
-## Commands
+## Commands and navigation
 
 ```text
 /quota
 ```
 
 The same action is available as **9Router quota** in the command palette.
+
+Inside the dialog:
+
+- Click `[+]` or `[-]` on an account header to expand or collapse that account.
+- Use `[expand all]` and `[collapse all]` for all logged-in provider accounts.
+- Scroll with the mouse wheel, drag the visible scrollbar, or use `↑`, `↓`, `j`, `k`, Page Up, and Page Down.
+- Press `Esc` to close the dialog.
 
 ## Development
 
