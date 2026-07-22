@@ -115,7 +115,7 @@ export function QuotaView(props: {
   const [snapshot, setSnapshot] = createSignal<RouterSnapshot | null>(null)
   const [loading, setLoading] = createSignal(true)
   const [error, setError] = createSignal("")
-  const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>(new Set())
+  const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>(new Set<string>())
   let running = false
   let scroll: ScrollBoxRenderable | undefined
 
@@ -184,7 +184,7 @@ export function QuotaView(props: {
     })
   }
 
-  const expandAll = () => setCollapsed(new Set())
+  const expandAll = () => setCollapsed(new Set<string>())
   const collapseAll = () =>
     setCollapsed(new Set(connections().filter((connection) => connection.buckets.length > 0).map((connection) => connection.connectionId)))
 
@@ -204,7 +204,9 @@ export function QuotaView(props: {
             rows={props.config.maxRowsPerConnection}
             collapsed={collapsible && collapsed().has(connection.connectionId)}
             showAllRows={props.showAllRows === true}
-            onToggle={collapsible && connection.buckets.length > 0 ? () => toggleConnection(connection.connectionId) : undefined}
+            {...(collapsible && connection.buckets.length > 0
+              ? { onToggle: () => toggleConnection(connection.connectionId) }
+              : {})}
           />
         )}
       </For>
@@ -212,7 +214,7 @@ export function QuotaView(props: {
   )
 
   return (
-    <box width="100%" flexDirection="column" flexGrow={props.scrollable === true ? 1 : undefined}>
+    <box width="100%" flexDirection="column" {...(props.scrollable === true ? { flexGrow: 1 } : {})}>
       <box width="100%" flexDirection="row" justifyContent="space-between">
         <text fg={props.api.theme.current.accent}>
           <b>9ROUTER QUOTA</b>
