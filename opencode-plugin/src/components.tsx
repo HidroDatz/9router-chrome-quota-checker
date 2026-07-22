@@ -23,6 +23,19 @@ function errorMessage(error: unknown, config: PluginConfig) {
   return error.message
 }
 
+function storedFlag(api: TuiPluginApi, key: string | undefined, fallback: boolean) {
+  if (!key) return fallback
+  const value = api.kv.get<unknown>(key, fallback)
+  return typeof value === "boolean" ? value : fallback
+}
+
+function storedIds(api: TuiPluginApi, key: string | undefined) {
+  if (!key) return []
+  const value = api.kv.get<unknown>(key, [])
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0)
+}
+
 function BucketRow(props: { bucket: QuotaBucket; theme: TuiThemeCurrent; compact: boolean }) {
   const detail = createMemo(() => [absoluteText(props.bucket), resetText(props.bucket)].filter(Boolean).join(" · "))
 
@@ -108,14 +121,27 @@ export function QuotaView(props: {
   scrollable?: boolean
   showAllConnections?: boolean
   showAllRows?: boolean
+  showCollapseActions?: boolean
+  sectionCollapsible?: boolean
+  sectionCollapsedByDefault?: boolean
+  sectionStateKey?: string
+  connectionStateKey?: string
 }) {
   const compact = props.compact === true
   const collapsible = props.collapsible === true
+  const sectionCollapsible = props.sectionCollapsible === true
   const dimensions = useTerminalDimensions()
   const [snapshot, setSnapshot] = createSignal<RouterSnapshot | null>(null)
   const [loading, setLoading] = createSignal(true)
   const [error, setError] = createSignal("")
-  const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>(new Set<string>())
+  const [sectionCollapsed, setSectionCollapsed] = createSignal(
+    sectionCollapsible
+      ? storedFlag(props.api, props.sectionStateKey, props.sectionCollapsedByDefault === true)
+      : false,
+  )
+  const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>(
+    new Set<string>(collapsible ? storedIds(props.api, props.connectionStateKey) : []),
+  )
   let running = false
   let scroll: ScrollBoxRenderable | undefined
 
@@ -174,19 +200,37 @@ export function QuotaView(props: {
         connection.buckets.some((bucket) => bucket.remainingPercent !== null && bucket.remainingPercent < 20),
       ).length ?? 0,
   )
+  const sectionSummary = createMemo(() => {
+    if (error()) return error()
+    const value = snapshot()
+    if (!value) return loading() ? "Loading quota..." : "No quota data"
+    if (value.connections.length === 0) return "No quota-enabled connections · click to expand"
+    return `${value.connections.length} accounts · ${low()} low · click to expand`
+  })
 
-  const toggleConnection = (connectionId: string) => {
-    setCollapsed((current) => {
-      const next = new Set(current)
-      if (next.has(connectionId)) next.delete(connectionId)
-      else next.add(connectionId)
-      return next
-    })
+  const saveCollapsed = (value: Set<string>) => {
+    setCollapsed(value)
+    if (props.connectionStateKey) props.api.kv.set(props.connectionStateKey, [...value])
   }
 
-  const expandAll = () => setCollapsed(new Set<string>())
+  const toggleConnection = (connectionId: string) => {
+    const next = new Set(collapsed())
+    if (next.has(connectionId)) next.delete(connectionId)
+    else next.add(connectionId)
+    saveCollapsed(next)
+  }
+
+  const expandAll = () => saveCollapsed(new Set<string>())
   const collapseAll = () =>
-    setCollapsed(new Set(connections().filter((connection) => connection.buckets.length > 0).map((connection) => connection.connectionId)))
+    saveCollapsed(
+      new Set(connections().filter((connection) => connection.buckets.length > 0).map((connection) => connection.connectionId)),
+    )
+  const toggleSection = () => {
+    if (!sectionCollapsible) return
+    const next = !sectionCollapsed()
+    setSectionCollapsed(next)
+    if (props.sectionStateKey) props.api.kv.set(props.sectionStateKey, next)
+  }
 
   const ConnectionList = () => (
     <>
@@ -215,46 +259,68 @@ export function QuotaView(props: {
 
   return (
     <box width="100%" flexDirection="column" {...(props.scrollable === true ? { flexGrow: 1 } : {})}>
-      <box width="100%" flexDirection="row" justifyContent="space-between">
-        <text fg={props.api.theme.current.accent}>
-          <b>9ROUTER QUOTA</b>
-        </text>
+      <box
+        width="100%"
+        flexDirection="row"
+        justifyContent="space-between"
+        onMouseUp={() => toggleSection()}
+      >
+        <box flexDirection="row">
+          <Show when={sectionCollapsible}>
+            <text fg={props.api.theme.current.accent}>{sectionCollapsed() ? "[+] " : "[-] "}</text>
+          </Show>
+          <text fg={props.api.theme.current.accent}>
+            <b>9ROUTER QUOTA</b>
+          </text>
+        </box>
         <Show when={loading()}>
           <text fg={props.api.theme.current.textMuted}>...</text>
         </Show>
       </box>
 
-      <Show when={collapsible && connections().some((connection) => connection.buckets.length > 0)}>
-        <box width="100%" flexDirection="row" gap={2}>
-          <text fg={props.api.theme.current.primary} onMouseUp={() => expandAll()}>
-            [expand all]
-          </text>
-          <text fg={props.api.theme.current.textMuted} onMouseUp={() => collapseAll()}>
-            [collapse all]
-          </text>
-        </box>
+      <Show when={sectionCollapsible && sectionCollapsed()}>
+        <text fg={error() ? props.api.theme.current.error : props.api.theme.current.textMuted}>{sectionSummary()}</text>
       </Show>
 
-      <Show when={props.scrollable === true} fallback={<ConnectionList />}>
-        <scrollbox
-          maxHeight={scrollHeight()}
-          paddingRight={1}
-          scrollbarOptions={{ visible: true }}
-          ref={(value: ScrollBoxRenderable) => (scroll = value)}
+      <Show when={!sectionCollapsed()}>
+        <Show
+          when={
+            collapsible &&
+            props.showCollapseActions !== false &&
+            connections().some((connection) => connection.buckets.length > 0)
+          }
         >
-          <ConnectionList />
-        </scrollbox>
-      </Show>
-
-      <Show when={snapshot()}>
-        {(value: () => RouterSnapshot) => (
-          <box width="100%" flexDirection="row" justifyContent="space-between">
-            <text fg={props.api.theme.current.textMuted}>
-              {value().connections.length} accounts · {low()} low
+          <box width="100%" flexDirection="row" gap={2}>
+            <text fg={props.api.theme.current.primary} onMouseUp={() => expandAll()}>
+              [expand all]
             </text>
-            <text fg={props.api.theme.current.textMuted}>9Router {value().routerVersion || "unknown"}</text>
+            <text fg={props.api.theme.current.textMuted} onMouseUp={() => collapseAll()}>
+              [collapse all]
+            </text>
           </box>
-        )}
+        </Show>
+
+        <Show when={props.scrollable === true} fallback={<ConnectionList />}>
+          <scrollbox
+            maxHeight={scrollHeight()}
+            paddingRight={1}
+            scrollbarOptions={{ visible: true }}
+            ref={(value: ScrollBoxRenderable) => (scroll = value)}
+          >
+            <ConnectionList />
+          </scrollbox>
+        </Show>
+
+        <Show when={snapshot()}>
+          {(value: () => RouterSnapshot) => (
+            <box width="100%" flexDirection="row" justifyContent="space-between">
+              <text fg={props.api.theme.current.textMuted}>
+                {value().connections.length} accounts · {low()} low
+              </text>
+              <text fg={props.api.theme.current.textMuted}>9Router {value().routerVersion || "unknown"}</text>
+            </box>
+          )}
+        </Show>
       </Show>
     </box>
   )
