@@ -23,4 +23,9 @@ const schema = readFileSync('schemas/org.gnome.shell.extensions.nine-router-quot
 assert.match(schema, /id="org\.gnome\.shell\.extensions\.nine-router-quota"/);
 assert.doesNotMatch(schema, /name="password"|name="auth-cookie"/, 'secrets must not be stored in GSettings');
 
+const client = readFileSync('client.js', 'utf8');
+assert.doesNotMatch(client, /\bnew\s+URL\s*\(/, 'GJS does not provide the browser URL global; use GLib.Uri');
+assert.doesNotMatch(client, /\bURLSearchParams\b/, 'GJS does not provide URLSearchParams; build the fixed query explicitly');
+assert.match(client, /GLib\.Uri\.parse/, 'client URL validation must use GLib.Uri');
+
 console.log('GNOME extension validation passed');
