@@ -19,8 +19,10 @@ import {
 } from './core.js';
 import { NineRouterClient, NineRouterError } from './client.js';
 
+const AUTH_MODES = new Set(['none', 'password', 'cookie']);
+
 function disabledItem(text, styleClass = null) {
-  const item = new PopupMenu.PopupMenuItem(text, { reactive: false, can_focus: false });
+  const item = new PopupMenu.PopupMenuItem(text, { reactive: false });
   if (styleClass) item.label.add_style_class_name(styleClass);
   return item;
 }
@@ -47,7 +49,12 @@ export default class NineRouterQuotaExtension extends Extension {
     this._alerted = new Set();
 
     this._settings = this.getSettings();
-    this._client = this._createClient();
+    try {
+      this._client = this._createClient();
+    } catch (error) {
+      this._client = null;
+      this._lastError = error;
+    }
 
     this._indicator = new PanelMenu.Button(0.0, this.metadata.name, false);
     this._panelBox = new St.BoxLayout({
@@ -76,7 +83,7 @@ export default class NineRouterQuotaExtension extends Extension {
 
     this._render();
     this._schedule();
-    void this._refresh();
+    if (this._client) void this._refresh();
   }
 
   disable() {
@@ -107,9 +114,11 @@ export default class NineRouterQuotaExtension extends Extension {
   }
 
   _config() {
+    const authMode = this._settings.get_string('auth-mode');
+    if (!AUTH_MODES.has(authMode)) throw new NineRouterError('INVALID_CONFIG', `Unsupported authentication mode: ${authMode}`);
     return {
       baseUrl: this._settings.get_string('base-url'),
-      authMode: this._settings.get_string('auth-mode'),
+      authMode,
       activeOnly: this._settings.get_boolean('active-only'),
       allowRemote: this._settings.get_boolean('allow-remote'),
       maxConnections: this._settings.get_uint('max-connections'),
@@ -125,6 +134,8 @@ export default class NineRouterQuotaExtension extends Extension {
   _onSettingsChanged() {
     if (!this._enabled) return;
     this._client?.destroy();
+    this._refreshing = false;
+    this._lastRefreshStarted = 0;
     try {
       this._client = this._createClient();
       this._lastError = null;
@@ -278,7 +289,11 @@ export default class NineRouterQuotaExtension extends Extension {
 
     const dashboardItem = new PopupMenu.PopupMenuItem('Open 9Router dashboard');
     dashboardItem.connect('activate', () => {
-      Gio.AppInfo.launch_default_for_uri(this._settings.get_string('base-url'), null);
+      try {
+        Gio.AppInfo.launch_default_for_uri(this._settings.get_string('base-url'), null);
+      } catch (error) {
+        Main.notifyError('Could not open 9Router', error instanceof Error ? error.message : String(error));
+      }
     });
     menu.addMenuItem(dashboardItem);
 
