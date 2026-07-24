@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.nine-router-quota" path="/org/gnome/shell/extensions/nine-router-quota/">
+    <key name="base-url" type="s">
+      <default>'http://127.0.0.1:20128'</default>
+      <summary>9Router base URL</summary>
+    </key>
+    <key name="auth-mode" type="s">
+      <default>'none'</default>
+      <summary>Authentication mode</summary>
+      <description>One of none, password, or cookie.</description>
+    </key>
+    <key name="refresh-interval" type="u">
+      <default>180</default>
+      <range min="30" max="3600"/>
+      <summary>Refresh interval in seconds</summary>
+    </key>
+    <key name="low-threshold" type="u">
+      <default>20</default>
+      <range min="1" max="100"/>
+      <summary>Low quota notification threshold</summary>
+    </key>
+    <key name="notifications" type="b">
+      <default>true</default>
+      <summary>Show low quota notifications</summary>
+    </key>
+    <key name="show-percentage" type="b">
+      <default>true</default>
+      <summary>Show the lowest remaining percentage in the panel</summary>
+    </key>
+    <key name="active-only" type="b">
+      <default>true</default>
+      <summary>Only query active 9Router connections</summary>
+    </key>
+    <key name="allow-remote" type="b">
+      <default>false</default>
+      <summary>Allow a remote HTTPS 9Router instance</summary>
+    </key>
+    <key name="max-connections" type="u">
+      <default>30</default>
+      <range min="1" max="100"/>
+      <summary>Maximum connections queried per refresh</summary>
+    </key>
+    <key name="concurrency" type="u">
+      <default>4</default>
+      <range min="1" max="10"/>
+      <summary>Maximum concurrent quota requests</summary>
+    </key>
+  </schema>
+</schemalist>
