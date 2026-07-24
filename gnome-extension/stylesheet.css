@@ -1,0 +1,15 @@
+.nine-router-quota-panel {
+  spacing: 4px;
+}
+
+.nine-router-quota-label {
+  font-feature-settings: "tnum";
+}
+
+.nine-router-quota-menu-account {
+  font-weight: 600;
+}
+
+.nine-router-quota-menu-detail {
+  color: rgba(255, 255, 255, 0.65);
+}
