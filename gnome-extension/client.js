@@ -141,13 +141,17 @@ export class NineRouterClient {
       throw new NineRouterError('OFFLINE', `Cannot reach 9Router: ${error instanceof Error ? error.message : String(error)}`);
     }
 
+    const status = message.get_status();
     const text = new TextDecoder().decode(responseBytes.get_data());
-    const payload = text ? JSON.parse(text) : null;
-    return {
-      status: message.get_status(),
-      payload,
-      message,
-    };
+    let payload = null;
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        throw new NineRouterError('INVALID_RESPONSE', `9Router returned malformed JSON for ${path}`, status);
+      }
+    }
+    return { status, payload, message };
   }
 
   async _login() {
