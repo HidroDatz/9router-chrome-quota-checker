@@ -42,3 +42,16 @@ jobs:
           path: opencode-plugin/typecheck.log
       - run: bun test
       - run: bun run build
+
+  gnome-extension:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gnome-extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run check
+      - run: glib-compile-schemas --strict --dry-run schemas

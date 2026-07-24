@@ -1,0 +1,14 @@
+{
+  "name": "nine-router-gnome-quota-indicator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "check": "node scripts/validate.mjs && node --test tests/*.test.mjs",
+    "package": "mkdir -p dist && gnome-extensions pack --force --out-dir=dist --extra-source=client.js --extra-source=core.js --extra-source=secret.js --extra-source=LICENSE ."
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
