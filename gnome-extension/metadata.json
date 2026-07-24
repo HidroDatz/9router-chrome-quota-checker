@@ -1,0 +1,10 @@
+{
+  "name": "9Router Quota Indicator",
+  "description": "Show quota for provider accounts connected to 9Router in the GNOME top panel.",
+  "uuid": "nine-router-quota@hidrodatz.github.io",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "settings-schema": "org.gnome.shell.extensions.nine-router-quota",
+  "url": "https://github.com/HidroDatz/9router-chrome-quota-checker",
+  "version": 1,
+  "version-name": "0.1.0"
+}
