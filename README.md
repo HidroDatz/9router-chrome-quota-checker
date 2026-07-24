@@ -6,9 +6,15 @@ The extension deliberately delegates credentials, OAuth refresh, connection prox
 
 ## OpenCode integration
 
-The repository also contains a read-only [OpenCode TUI plugin](opencode-plugin/README.md). It renders provider quota in `sidebar_content`, registers a `/quota` command, and opens a detailed quota dialog without reading OpenCode's provider credentials.
+The repository also contains a read-only [OpenCode TUI plugin](opencode-plugin/README.md). It renders provider quota in `sidebar_content`, registers a `/9router-quota` command, and opens a detailed quota dialog without reading OpenCode's provider credentials.
 
 The plugin treats 9Router as the quota aggregation boundary. Authentication is supplied through environment variables, and the resulting dashboard cookie remains in process memory rather than being written to disk. See [the OpenCode integration research](opencode-plugin/RESEARCH.md) for the upstream design analysis and overlap with native OpenCode usage tracking.
+
+## GNOME top-panel integration
+
+The repository includes a native [GNOME Shell quota indicator](gnome-extension/README.md) for GNOME 45–50. It adds an `9R` indicator to the Linux top panel, shows the lowest remaining quota, exposes collapsible provider/account menus, refreshes in the background, and can notify when a quota bucket becomes low.
+
+Dashboard passwords and cookies are stored in GNOME Keyring. The Shell extension does not store or request credentials for Claude, Codex, Gemini, Copilot, GLM, MiniMax, or another provider; all provider-specific quota work stays inside 9Router.
 
 ## Implemented scope
 
@@ -23,7 +29,7 @@ Not included yet: scheduled background refresh, notifications, badge alerts, rem
 
 ## Security model
 
-The extension does **not** request or store:
+The Chrome extension does **not** request or store:
 
 - The 9Router dashboard password.
 - Provider access tokens or refresh tokens.
@@ -111,7 +117,7 @@ This prevents absolute balances such as `348 credits` from being rendered as `34
 src/background/       Background message routing and refresh orchestration
 src/core/client/      9Router API client and typed error model
 src/core/quota/       Quota types, provider policies, normalization
-src/core/refresh/     Concurrency-limited refresh pipeline
+src/core/refresh/     Concurrency-limited quota refresh pipeline
 src/core/storage/     chrome.storage.local repository
 src/options/          Settings and connection probe UI
 src/popup/            Quota popup UI
@@ -119,8 +125,9 @@ src/shared/           URL and message contracts
 tests/                Fixtures and unit tests
 docs/                 Contract, compatibility, provider, and security notes
 opencode-plugin/      OpenCode TUI sidebar, command, dialog, client, and tests
+gnome-extension/      GNOME Shell top-panel indicator, preferences, client, and tests
 ```
 
 ## License
 
-MIT
+The Chrome extension and OpenCode plugin are MIT licensed. The GNOME Shell extension is GPL-3.0-or-later because GNOME Shell extensions must use a compatible license.
