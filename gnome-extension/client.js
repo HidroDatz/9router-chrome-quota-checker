@@ -19,22 +19,47 @@ export class NineRouterError extends Error {
 }
 
 export function normalizeBaseUrl(value, allowRemote = false) {
-  const url = new URL(value);
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+  const source = String(value ?? '').trim();
+  let uri;
+  try {
+    uri = GLib.Uri.parse(source, GLib.UriFlags.NONE);
+  } catch {
+    throw new NineRouterError('INVALID_CONFIG', '9Router URL is not a valid absolute URL');
+  }
+
+  const scheme = (uri.get_scheme() ?? '').toLowerCase();
+  const host = (uri.get_host() ?? '').toLowerCase();
+  if (scheme !== 'http' && scheme !== 'https') {
     throw new NineRouterError('INVALID_CONFIG', '9Router URL must use HTTP or HTTPS');
   }
-  if (url.username || url.password) {
+  if (!host) {
+    throw new NineRouterError('INVALID_CONFIG', '9Router URL must include a hostname');
+  }
+  if (uri.get_userinfo()) {
     throw new NineRouterError('INVALID_CONFIG', 'Do not place credentials in the 9Router URL');
   }
-  if (url.search || url.hash) {
+  if (uri.get_query() || uri.get_fragment()) {
     throw new NineRouterError('INVALID_CONFIG', '9Router URL must not contain a query string or fragment');
   }
-  const loopback = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
-  if (!loopback.has(url.hostname)) {
+
+  const loopback = new Set(['localhost', '127.0.0.1', '::1']);
+  if (!loopback.has(host)) {
     if (!allowRemote) throw new NineRouterError('INVALID_CONFIG', 'Remote 9Router origins require Allow remote');
-    if (url.protocol !== 'https:') throw new NineRouterError('INVALID_CONFIG', 'Remote 9Router origins must use HTTPS');
+    if (scheme !== 'https') throw new NineRouterError('INVALID_CONFIG', 'Remote 9Router origins must use HTTPS');
   }
-  return `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
+
+  const path = (uri.get_path() ?? '').replace(/\/+$/, '');
+  const normalized = GLib.Uri.build(
+    GLib.UriFlags.NONE,
+    scheme,
+    null,
+    host,
+    uri.get_port(),
+    path,
+    null,
+    null,
+  );
+  return normalized.to_string();
 }
 
 function versionParts(value) {
@@ -114,7 +139,7 @@ export class NineRouterClient {
   }
 
   _url(path) {
-    return new URL(`${this._config.baseUrl}${path}`).toString();
+    return `${this._config.baseUrl}${path}`;
   }
 
   async _prepareAuth() {
@@ -205,13 +230,9 @@ export class NineRouterClient {
   async connections() {
     const output = [];
     for (let page = 1; page <= 100; page += 1) {
-      const query = new URLSearchParams({
-        accountStatus: this._config.activeOnly ? 'active' : 'all',
-        sort: 'priority',
-        page: String(page),
-        pageSize: '100',
-      });
-      const payload = await this._request('GET', `/api/providers/client?${query.toString()}`);
+      const accountStatus = this._config.activeOnly ? 'active' : 'all';
+      const query = `accountStatus=${accountStatus}&sort=priority&page=${page}&pageSize=100`;
+      const payload = await this._request('GET', `/api/providers/client?${query}`);
       const rows = Array.isArray(payload.connections) ? payload.connections : [];
       output.push(...rows.map(normalizeConnection).filter(Boolean));
       const pagination = isRecord(payload.pagination) ? payload.pagination : null;
