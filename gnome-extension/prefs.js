@@ -46,10 +46,7 @@ export default class NineRouterQuotaPreferences extends ExtensionPreferences {
     authRow.selected = Math.max(0, AUTH_MODES.indexOf(settings.get_string('auth-mode')));
     connectionGroup.add(authRow);
 
-    const secretRow = new Adw.PasswordEntryRow({
-      title: 'Dashboard secret',
-      show_apply_button: false,
-    });
+    const secretRow = new Adw.PasswordEntryRow({ title: 'Dashboard secret' });
     connectionGroup.add(secretRow);
 
     const secretAction = new Adw.ActionRow({
